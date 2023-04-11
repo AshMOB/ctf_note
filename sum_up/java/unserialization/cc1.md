@@ -2,7 +2,7 @@
 保存在文件里
 网络传输
 
-Commonscollections 链
+CommonsCollections 链
 
 可以作为传递的载体，因为参数经常是 object
 

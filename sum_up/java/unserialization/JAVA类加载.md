@@ -19,3 +19,7 @@ loadClass->findClass(重写的方法)->defineClass(从字节码加载类)
 URLClassLoader 任意类加载 file/http/jar
 ClassLoader.defineClass 字节码加载任意类 私有
 Unsafe.defineClass 字节码加载 public 类不能直接生成 Spring 里可以直接生成
+
+
+
+rdesktop -g 1440x900 -r disk:LinuxDisk=/root/Downloads -u username -p "password" 192.168.10.1:3389

